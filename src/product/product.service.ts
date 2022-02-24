@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ClientKafka } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ProducerService } from 'src/kafka/producer.service';
 import { Repository } from 'typeorm';
@@ -7,7 +8,10 @@ import { ProductRequest } from './product.request';
 
 @Injectable()
 export class ProductService {
-  constructor(private readonly producerService: ProducerService) {}
+  constructor(
+    private readonly producerService: ProducerService,
+    @Inject('AUTH_SERVICE') private readonly authClient: ClientKafka,
+  ) {}
   @InjectRepository(Product)
   private readonly productRepository: Repository<Product>;
 
@@ -36,7 +40,7 @@ export class ProductService {
   ): Promise<Product> {
     const product = await this.productRepository.findOne(id);
     this.productRepository.merge(product, productRequest);
-
+    this.authClient.emit('update-product', { ...product });
     return await this.productRepository.save(product);
   }
 
